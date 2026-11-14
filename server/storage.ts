@@ -11,6 +11,7 @@
 import {
   S3Client, ListBucketsCommand, HeadBucketCommand, CreateBucketCommand,
   PutObjectCommand, GetObjectCommand, HeadObjectCommand, ListObjectsV2Command,
+  DeleteObjectCommand,
   type BucketLocationConstraint,
 } from '@aws-sdk/client-s3'
 import { createHash } from 'node:crypto'
@@ -155,6 +156,14 @@ export async function headObject(key: string): Promise<{ size: number; etag?: st
     if ((e as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode === 404) return null
     throw e
   }
+}
+
+/** 删除远端对象；S3 语义下删除不存在的 key 也算成功。未配置存储时返回 false。 */
+export async function deleteObject(key: string): Promise<boolean> {
+  const s = storage()
+  if (!s) return false
+  await s.client.send(new DeleteObjectCommand({ Bucket: s.bucket, Key: objectKey(key) }))
+  return true
 }
 
 export async function listObjects(prefix = ''): Promise<{ key: string; size: number }[]> {

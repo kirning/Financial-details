@@ -1,9 +1,16 @@
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import http from 'node:http'
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { Readable } from 'node:stream'
 
 const BACKEND = { host: '127.0.0.1', port: 7300 }
+/** 版本号单一来源：项目根 VERSION（由 scripts/bump-version.mjs 维护） */
+const APP_VERSION = readFileSync(
+  join(dirname(fileURLToPath(import.meta.url)), '..', 'VERSION'), 'utf8',
+).trim()
 
 /** 需要转发给 Koa 后端的路径前缀（含中文「凭证」） */
 const PROXY_RE = /^\/(api|凭证|assets)(\/|$)/
@@ -51,6 +58,8 @@ function backendProxy(): Plugin {
 
 export default defineConfig({
   plugins: [react(), backendProxy()],
+  // 构建时注入，页头显示版本号，便于判断远端部署是否落后
+  define: { __APP_VERSION__: JSON.stringify(APP_VERSION) },
   // 产物挂在 /app/ 下，避免与根目录的 assets/（Tailwind 兜底副本）冲突
   base: '/app/',
   server: { port: 7301, strictPort: true },

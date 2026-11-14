@@ -91,19 +91,28 @@
 与 Web 服务**同进程**（`server/index.ts` 启动时一并拉起），默认 `http://127.0.0.1:7302/mcp`，
 健康检查 `GET /health`。共用同一个 SQLite 连接，所以还原数据库时不会出现多进程指向不同文件的问题。
 
-**工具只覆盖流水明细 CRUD + 整库备份/还原**，不提供统计工具 ——
-web 的收支结构、月度趋势、余额全部由明细实时算出，改明细即反映到统计。
+**工具覆盖：明细 CRUD + 凭证附件 + 待办缺口 + 一致性校验 + 整库备份/还原（共 14 个）**。
+不提供统计工具 —— web 的收支结构、月度趋势、余额全部由明细实时算出，改明细即反映到统计。
 
 | 工具 | 作用 |
 |---|---|
 | `ledger_list_vouchers` | 条件查询（period / type / acc / from / to / q / tag + limit / offset） |
 | `ledger_get_voucher` | 按凭证号查单笔完整字段 |
-| `ledger_create_voucher` | 新增（凭证号自动分配；凭证图片走现有上传接口） |
+| `ledger_create_voucher` | 新增（凭证号自动分配；附图请随后调 `ledger_attach_file`） |
 | `ledger_update_voucher` | 局部修改，只传要改的字段 |
 | `ledger_delete_voucher` | 删除（**必须 confirm=true**；仅删 DB 记录，不动凭证图） |
+| `ledger_attach_file` | 传附件（base64 ≤ 8 MB，仅取 basename）→ MinIO 主存 + 本地镜像 + `attachments` 表 + 重算 `SHA256SUMS.txt`；同名同内容幂等跳过 |
+| `ledger_list_attachments` | 列出某凭证附件，并列 `localSize` / `remoteSize` 判断证据链是否完整 |
+| `ledger_get_attachment` | 按相对路径读回 base64（先 MinIO、失败回退本地，密钥不出后端） |
+| `ledger_delete_attachment` | 删附件（**必须 confirm=true**）：删记录 + 本地文件 + MinIO 对象 + 刷新 `SHA256SUMS.txt` |
+| `ledger_todos` | 待办与缺口（与 Web 待办面板同源）：电费/外部停车场缺月 `gaps`、缺凭证 `nopay`、待核 `review`、负账户 `negAcc`、首期 `first` |
+| `ledger_verify` | 校验各凭证目录 `SHA256SUMS.txt` 与实际文件哈希 |
 | `ledger_backup_db` | `VACUUM INTO` 一致快照 → MinIO `backups/` → 回读校验 SHA256 → 写 `.json` 元数据 |
 | `ledger_list_backups` | 列出备份（按文件名倒序） |
 | `ledger_restore_db` | 还原（**必须 confirm=true**）：校验 → 自动预备份 → 本地留底 → 关连接 → 替换 → 重开 |
+
+> 记账 Agent 的完整闭环：`ledger_todos` 看还缺什么 → `ledger_create_voucher` 记明细 →
+> `ledger_attach_file` 附图 → `ledger_verify` 收尾自检。**不需要 Web 界面参与**。
 
 **还原安全网**：先验 `SQLite format 3` 文件头 + `PRAGMA integrity_check` + `vouchers`/`attachments` 表；
 还原前自动 `backupDb('pre-restore')` 到 MinIO，本地留 `data/ledger.db.before-restore-<ts>`；
@@ -408,6 +417,29 @@ cd web && pnpm build            # 产物 web/dist，base=/app/
 
 > ⚠️ **`npm start` 跑的是 `dist/index.js`，不是 `.ts`**。
 > 改了 `server/*.ts` 却不 build，会以为「改了没生效」。
+
+### 版本号（2026-11-15 起，用户要求：改动代码就动版本号）
+
+单一事实来源：项目根 **`VERSION`**（`x.y.z`）。改完代码、提交前跑一次：
+
+```bash
+cd server && npm run bump              # patch +1   1.0.0 → 1.0.1   （修 bug / 调整文案）
+cd server && npm run bump -- --minor   # minor +1   1.0.0 → 1.1.0   （新增功能、新增工具）
+cd server && npm run bump -- --major   # major +1   1.1.0 → 2.0.0   （破坏性变更 / 数据模型不兼容）
+cd server && npm run bump -- --set 2.0.0
+```
+
+脚本 `scripts/bump-version.mjs` 会同步 `server/package.json` 与 `web/package.json`，三处不再各说各话。
+
+| 版本号出现在哪 | 怎么来的 |
+|---|---|
+| `GET /api/health` 的 `version` | `server/version.ts` 运行时读 `VERSION` |
+| `GET /health`（MCP） 的 `version` | 同上；同时作为 `McpServer` 的 `serverInfo.version` |
+| 页面右上角 `v1.0.0` 角标 | Vite 构建时 `define.__APP_VERSION__` 注入，**改完必须重新 `pnpm build`** |
+
+**纪律**：一次代码改动 = 一次 bump + 一次 commit，commit message 带上 `vX.Y.Z`。
+只改文档（`*.md`）、只记流水账（走 MCP 写数据）**不算代码变更，不 bump**。
+版本号是给「远端部署是否落后」做判断用的，页头角标与 `/health` 不一致就说明远端没重新部署。
 
 ### 技术选型理由（别轻易改）
 

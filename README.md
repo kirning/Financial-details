@@ -90,6 +90,22 @@ cd 南丰村财务/web && pnpm build      # 产物在 web/dist，base=/app/
 > 后端依赖仅 3 个：`koa` `@koa/router` `koa-bodyparser`。
 > 前端用 **pnpm**（npm 在本机会被 `fsevents` 的 arborist bug 卡住）。
 
+### 版本号
+
+版本号单一来源是根目录 `VERSION`（`x.y.z`），**每次改动代码后、提交前**递增：
+
+```bash
+cd server
+npm run bump              # patch +1（bug / 文案）
+npm run bump -- --minor   # minor +1（新功能、新工具）
+npm run bump -- --major   # major +1（破坏性变更）
+```
+
+脚本 `scripts/bump-version.mjs` 同时写回 `server/package.json` 与 `web/package.json`。
+版本号出现在三处：`GET /api/health` 的 `version`、MCP `GET /health` 的 `version`
+（也是 MCP `serverInfo.version`）、页面右上角 `vX.Y.Z` 角标（Vite 构建期注入，
+**改完必须重新 `pnpm build`**）。只改文档不 bump。
+
 ## 前端：Vite + React + TypeScript
 
 **依赖**：React 18 + Tailwind（自定义暗色原子类）、**antd 5.29.3**（UI 组件）、
@@ -169,13 +185,19 @@ node dist/cli.js minio-verify   # 全量回读远端对象比对 SHA256
 `server/mcp.ts` 提供基于 HTTP 的 MCP 服务，随后端一起启动，默认
 `http://127.0.0.1:7302/mcp`（健康检查 `/health`）。**与 Web 共用同一进程和同一个 SQLite 连接**。
 
-工具只有「流水明细」的增删改查 —— 页面上的统计全部由明细实时计算，无需单独统计工具：
+工具 = 明细 CRUD + 凭证附件 + 待办缺口 + 一致性校验 + 整库备份/还原（共 14 个）。
+页面上的统计全部由明细实时计算，无需单独统计工具：
 
 | 工具 | 说明 |
 |---|---|
 | `ledger_list_vouchers` / `ledger_get_voucher` | 条件查询 / 单笔查询 |
 | `ledger_create_voucher` / `ledger_update_voucher` | 新增 / 局部修改 |
 | `ledger_delete_voucher` | 删除（需 `confirm: true`） |
+| `ledger_attach_file` | 传凭证附件（base64 ≤ 8 MB）→ MinIO + 本地镜像 + `attachments` 表 + 刷新 `SHA256SUMS.txt` |
+| `ledger_list_attachments` / `ledger_get_attachment` | 列附件（含本地/远端大小对比）/ 读回 base64 |
+| `ledger_delete_attachment` | 删附件（需 `confirm: true`，连带清 MinIO 对象） |
+| `ledger_todos` | 待办与缺口（缺月、缺凭证、待核、负账户） |
+| `ledger_verify` | 校验各凭证目录 `SHA256SUMS.txt` 与实际文件哈希 |
 | `ledger_backup_db` / `ledger_list_backups` | 备份 SQLite 到 MinIO `backups/`（VACUUM INTO + SHA256 回读校验）/ 列出备份 |
 | `ledger_restore_db` | 从备份还原（需 `confirm: true`；自动预备份 + 本地留底 + 完整性校验） |
 

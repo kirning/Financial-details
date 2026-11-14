@@ -1,9 +1,10 @@
 {
   "name": "nanfeng-ledger-server",
-  "version": "2.0.0",
+  "version": "1.0.0",
   "description": "南丰村财务账本 · Koa + SQLite 后端（TypeScript）",
   "scripts": {
     "build": "tsc",
+    "bump": "node ../scripts/bump-version.mjs",
     "build:watch": "tsc --watch",
     "dev": "tsc --watch & node --watch dist/index.js",
     "start": "node dist/index.js",

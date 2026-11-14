@@ -43,6 +43,7 @@ import {
   listObjects, contentTypeOf, objectKey,
 } from './storage.js'
 import { startMcpServer } from './mcp.js'
+import { version } from './version.js'
 
 const PORT = +(process.env.PORT || 7300)
 const app = new Koa()
@@ -235,7 +236,7 @@ router.get('/api/storage/status', async (ctx: RouterContext) => {
 })
 
 router.get('/api/health', (ctx: RouterContext) => {
-  ctx.body = { ok: true, uptime: process.uptime(), ...Q.stats() }
+  ctx.body = { ok: true, version: version(), uptime: process.uptime(), ...Q.stats() }
 })
 router.post('/api/admin/migrate', (ctx: RouterContext) => {
   ctx.body = { data: Q.migrateFromCsv() }

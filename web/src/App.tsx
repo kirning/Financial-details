@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Button } from 'antd'
 import { api, money } from './lib/api'
+
+/** Vite 构建时从项目根 VERSION 注入；用于一眼判断部署是否落后 */
+declare const __APP_VERSION__: string
 import type { Summary, Voucher, VoucherForm, PendingFile, StructureRange } from './lib/types'
 import { StatCard, Toast, SectionTitle } from './components/ui'
 import { MonthlyChart, AccountPanel, SeriesPanel, StructurePanel } from './components/Panels'
@@ -75,9 +77,9 @@ export default function App() {
       vno = editing.vno
       say(`已更新 ${vno}`)
     } else {
-      const r = await api.create(form)
-      vno = r.vno
-      say(`已记入 ${vno}`)
+      // 2026-11-14 起新增/修改/删除统一走远端 MCP，页面不再提供新增入口
+      say('页面已停用新增，请通过 nanfeng-ledger MCP 记账', 'error')
+      return
     }
     if (pending.length) {
       let ok = 0
@@ -126,11 +128,9 @@ export default function App() {
             <span className="chip">出纳：成（阿四）</span>
             <span className="chip">{stats.vouchers} 笔凭证 · {stats.attachments} 张凭证图</span>
             <span className="chip">SQLite</span>
+            <span className="chip">v{__APP_VERSION__}</span>
           </div>
         </div>
-        <Button type="primary" size="small" onClick={() => { setEditing(null); setFormOpen(true) }}>
-          + 记一笔
-        </Button>
       </header>
 
       {/* 概览 */}
@@ -180,9 +180,9 @@ export default function App() {
 
       <TodoPanel todos={todos} onJump={jumpTo} />
 
-      {/* 记账 / 编辑 */}
+      {/* 编辑已有凭证（新增入口已下线，只能由 MCP 记账） */}
       <VoucherFormModal
-        open={formOpen} editing={editing} accounts={accounts} subjects={subjects}
+        open={formOpen && !!editing} editing={editing} accounts={accounts} subjects={subjects}
         rows={rows} onClose={() => { setFormOpen(false); setEditing(null) }}
         onSubmit={submit}
       />
