@@ -26,12 +26,18 @@
 
 ## 📁 数据到底在哪（2026-11-09 整理后，先看这条）
 
-**唯一账本目录：`D:/Users/wuxw32.CN/WorkBuddy/Claw/南丰村财务/`** —— 全盘只有这一份账。
+**唯一账本目录：`D:/Users/wuxw32.CN/WorkBuddy/Claw/南丰村财务/`** —— 本机只有这一份目录。
 另一个 `D:/Users/wuxw32.CN/WorkBuddy/南丰村财务`（空目录、0 文件 0 字节）已于 2026-11-09 **删除**，别再找第二套。
+
+> ⚠️ **2026-11-14 写入口切换**：权威账本已迁到另一个系统部署的同款服务，
+> 本机这份 `data/ledger.db` 降级为**历史快照 / 灾备**。以后新增/修改/删除明细
+> 一律走 WorkBuddy 配置的 `nanfeng-ledger` MCP 工具，**不要用本机 CLI / 7300 写接口**。
+> 两端各有独立 SQLite，双写会分叉；切换前已逐笔核对 17 字段 × 30 笔零差异。
+> 详见下方「最重要的一条：记账入口」。
 
 | 路径 | 是什么 | 处置 |
 |---|---|---|
-| `data/ledger.db` | ★ **唯一数据源**，30 笔凭证；`vouchers` 含独立 `tag` 列 | 只经 CLI / API 改，绝不手改 |
+| `data/ledger.db` | **本机副本**（30 笔基线）；2026-11-14 起权威账本在远端 MCP | 只经 CLI / API 改，绝不手改；**日常记账不再写它** |
 | `凭证/` | 30 个凭证号目录：原图 + 聊天原文 + SHA256SUMS | 只增不改，原始证据 |
 | `收件箱/` | 新账单暂存队列 `_QUEUE.md` | 按「接收与处理解耦」流程走 |
 | `明细分析.md` | 唯一手写业务解读 / 序列规律 | 可追加，不自动生成 |
@@ -113,6 +119,10 @@ web 的收支结构、月度趋势、余额全部由明细实时算出，改明�
 
 源码：`server/mcp.ts`（工具与 HTTP 传输）；`db.ts` 为此新增 `closeDatabase()` /
 `reopenDatabase()`，`db` 由 `const` 改成 `let`（ESM live binding）。
+
+**2026-11-14 起的日常写入口是远端部署的这套 MCP**（WorkBuddy 里叫 `nanfeng-ledger`），
+本机 7302 仅作灾备 / 开发调试；两套服务各有独立 SQLite，**绝不能双写**。
+本机与远端共用 MinIO 凭证与备份 bucket，备份/还原统一走远端 MCP。
 
 ---
 
@@ -202,11 +212,29 @@ node dist/cli.js verify                      # 本地校验 + 轻量远端检查
 - **无凭证不入账**：消息里只有 `[图片]` 占位 / 无附件链接 → 队列标 `⏳ 待补图`，
   回用户「这张图没传过来，请补发」，**绝不猜金额**。
 - 凭证号按业务发生日所属期；支出双凭证；内部→微信零钱 / 外部→农行 6316；有图必留。
-- 收件箱只是接收暂存区，**唯一数据源仍是 `data/ledger.db`**。
+- 收件箱只是接收暂存区；**权威账本在远端 MCP**，本机 `data/ledger.db` 为灾备副本（2026-11-14 起）。
+  入账那一步改为调 `ledger_create_voucher`，仍须串行，不要并发。
 
 ---
 
-## ⚡ 最重要的一条：记账只走命令，不要改代码
+## ⚡ 最重要的一条：记账入口（2026-11-14 起改为远端 MCP）
+
+**权威写入口 = WorkBuddy 配置的 `nanfeng-ledger` MCP 服务**（另一系统已部署同款代码，
+端点与凭据见本机 `~/.workbuddy/mcp.json`，不写入本文件）。新增/修改/删除明细一律调用
+`ledger_create_voucher` / `ledger_update_voucher` / `ledger_delete_voucher`（删除需 `confirm=true`）；
+查询用 `ledger_list_vouchers` / `ledger_get_voucher`；备份还原用
+`ledger_backup_db` / `ledger_list_backups` / `ledger_restore_db`（还原需 `confirm=true`）。
+
+**为什么改**：本机与远端各有独立 SQLite 文件，双写必然分叉。切换前逐笔核对
+**17 字段 × 30 笔零差异**（收入 56,997.74 / 支出 -16,097.53 / 净 40,900.21），
+9 个支出标签、39 附件、MinIO 110 对象、5 个 .db 备份全部一致。
+
+⚠️ 本机 `data/ledger.db`、7300 页面、7302 MCP、`verify` / `report` / `export-csv`
+从此只作**灾备 / 只读 / 代码维护**，结果**不是权威数据**；两端共用同一 MinIO bucket，
+**本地不要再跑 backup/restore**，否则会覆盖远端。
+⚠️ MCP 目前**没有上传凭证图的工具**：带图新增需走远端 Web 上传接口或后续补工具。
+
+### 本机 CLI（仅灾备 / 离线维护，日常记账不要跑）
 
 ```bash
 cd D:/Users/wuxw32.CN/WorkBuddy/Claw/南丰村财务/server
@@ -229,7 +257,9 @@ node dist/cli.js add --date 2026-06-25 --period 2026-06 --type 支出 \
 | `node dist/cli.js export-csv` | 按需生成 `流水.csv` 导出备份（根目录默认不保留该文件） |
 | `node dist/cli.js migrate` | 兼容旧迁移入口；源 CSV 已清理，现为空操作（`existsSync` 保护，不报错） |
 
-> ⚠️ **CLI 没有改单据的命令**（不能改金额/日期/备注）。要改已有凭证的字段，
+> ⚠️ **CLI 没有改单据的命令**（不能改金额/日期/备注）；远端 MCP 的
+> `ledger_update_voucher` 可直接改任意字段，**日常修改一律走它**。仅在灾备本机时：
+> 要改已有凭证的字段，
 > 写一次性 `.mjs` 调 `updateVoucher(vno, { note })`（`db.ts` 导出，**部分更新**，
 > 未传字段沿用原值，安全）；改完记得重跑 `hashVoucherDir` / `verify` 与 `export-csv`。
 > （临时脚本用完即删，别留在 `server/` 里。）
@@ -241,7 +271,8 @@ node dist/cli.js add --date 2026-06-25 --period 2026-06 --type 支出 \
 历史上曾手工编辑 `账本.md` / `账本.html`，**单笔耗时 12 分钟**——因为在重复劳动：
 逐笔明细档案、待办清单、HTML 回填，全是脚本能自动算的东西。
 
-现在架构已定死：`data/ledger.db` 是**唯一数据源**，页面从接口取数渲染。
+历史架构定死过「`data/ledger.db` 是唯一数据源」；**2026-11-14 起该表述只适用于本机副本**，
+权威账本在远端 MCP（见本章开头）。页面始终从接口取数渲染。
 **`账本.md` 是历史归档，`账本.html` 是 React 上线前的兜底，都不要维护。**
 
 ---
@@ -415,7 +446,8 @@ cd web && pnpm build            # 产物 web/dist，base=/app/
 5. **微信转账类凭证：先问清每张图是谁的手机拍的** —— 「你发起了一笔转账」是**发起方**视角，
    「你已收款·资金已存入零钱」是**收款方**视角。两张图常来自两部手机，
    据此即可判定资金方向与收款账户归属，不用猜（2026-10-19 `NF-2026-10-005` 实证有效）。
-6. 入账后 `node dist/cli.js verify` 校验，并检查 `todos()` 是否正确收录。
+6. 入账（**走远端 MCP**）后用 `ledger_get_voucher` 回查该笔确认落库；
+   本机 `verify` / `todos()` 只看得到本机快照，**不要拿它验收远端入账**。
 
 ### 铁律：数字矛盾时不许自己挑一个信
 
