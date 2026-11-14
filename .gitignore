@@ -31,3 +31,6 @@ _old_*
 
 # 配置样例允许入库（不含真实密钥）
 !server/.env.example
+
+# 内部部署指南（含明文密钥，绝不入库 / 绝不上传 GitHub）
+internal/
