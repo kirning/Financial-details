@@ -147,6 +147,10 @@ node dist/cli.js minio-verify                # 全量下载远端对象逐个比
 node dist/cli.js verify                      # 本地校验 + 轻量远端检查（1 次 list，比 key 与大小）
 ```
 
+> 2026-11-14 修正：`minio-sync` 原按 key+大小跳过，**`.txt` 内容变而字节数不变会漏传**
+> （实测 SHA256SUMS 格式改正后远端仍是旧版）。现 `.txt` 一律强制重传，与 `syncVoucherDir` 一致。
+> `verify` 的轻量远端检查仍只比 key+大小，**要逐字节比对必须跑 `minio-verify`**。
+
 **踩过的坑（别重踩）**：
 - 经 CF 的 MinIO 创建桶必须带 `CreateBucketConfiguration.LocationConstraint`，
   否则 SDK 发空 body 会回 `400 MalformedXML`；AWS SDK 的 `BucketLocationConstraint`

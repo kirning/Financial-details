@@ -46,7 +46,9 @@ export interface SyncReport {
   failures: { file: string; error: string }[]
 }
 
-/** 同步：远端缺失或大小不同的才上传，上传后回读比对 SHA256；--force 可全量重传 */
+/** 同步：远端缺失或大小不同的才上传，上传后回读比对 SHA256；--force 可全量重传。
+ *  .txt（SHA256SUMS / 来源说明 / 索引）内容可能变而字节数不变，一律强制重传，
+ *  与 syncVoucherDir 口径一致；否则按 key+大小跳过会漏掉同尺寸改动（2026-11-14 实测踩到）。 */
 export async function syncVouchers(opts: { force?: boolean } = {}): Promise<SyncReport> {
   if (!storage()) throw new Error('MinIO 未配置（检查 server/.env）')
   await ensureBucket()
@@ -59,7 +61,8 @@ export async function syncVouchers(opts: { force?: boolean } = {}): Promise<Sync
   for (const [key, buf] of files) {
     try {
       const localHash = sha256(buf)
-      if (!opts.force && remote.get(key) === buf.length) { report.skipped++; continue }
+      const isText = key.toLowerCase().endsWith('.txt')
+      if (!opts.force && !isText && remote.get(key) === buf.length) { report.skipped++; continue }
       await putObject(key, buf)
       report.uploaded++
       const back = await getObject(key)
