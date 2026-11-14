@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    /* 目标与模块 */
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["node"],
+
+    /* 输出 */
+    "rootDir": ".",
+    "outDir": "dist",
+    "declaration": true,
+    "sourceMap": true,
+    "removeComments": false,
+
+    /* 严格度 */
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "exactOptionalPropertyTypes": false,
+
+    /* 互操作 */
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+
+    /* 其他 */
+    "resolveJsonModule": true,
+    "verbatimModuleSyntax": false
+  },
+  "include": ["*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

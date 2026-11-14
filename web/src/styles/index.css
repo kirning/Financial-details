@@ -1,0 +1,102 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { color-scheme: dark; }
+  body { @apply bg-ink-900 text-fg font-sans text-sm leading-relaxed p-6; }
+  /* 表格数字等宽对齐 */
+  th, td { vertical-align: top; }
+}
+
+@layer components {
+  .card {
+    @apply bg-ink-800 border border-ink-600 rounded-[10px] p-4;
+  }
+  .panel {
+    @apply bg-ink-800 border border-ink-600 rounded-[10px] p-4 mb-4;
+  }
+  .section-title {
+    @apply text-[15px] font-semibold mt-7 mb-3 flex items-center gap-2
+           before:w-[3px] before:h-3.5 before:bg-acc before:rounded-sm before:content-[''];
+  }
+  .num { @apply text-right tabular-nums whitespace-nowrap; }
+  .mono { @apply font-mono; }
+  .note-text { @apply text-fg-dim text-xs; }
+  .nt { @apply block text-fg-dim2 text-2xs mt-0.5 leading-relaxed; }
+
+  .chip {
+    @apply inline-flex items-center rounded-full px-2.5 py-px text-xs
+           border border-ink-600 bg-ink-700 text-fg-dim mr-1.5;
+  }
+  .pill {
+    @apply inline-block rounded-[5px] px-2 py-0.5 text-2xs
+           text-fg-dim bg-ink-700 border border-ink-600 whitespace-nowrap;
+  }
+
+  /* 金额徽标 */
+  .amt { @apply inline-block rounded px-1.5 py-px text-2xs font-medium tabular-nums; }
+  .amt-in  { @apply bg-pos/15 text-pos border border-pos/30; }
+  .amt-out { @apply bg-neg/15 text-neg border border-neg/30; }
+  .amt-warn{ @apply bg-warn/15 text-warn border border-warn/30; }
+
+  /* 按钮 */
+  .btn {
+    @apply bg-ink-700 border border-ink-600 text-fg-dim px-3 py-1 rounded-md
+           text-xs cursor-pointer transition-colors
+           hover:border-fg-dim hover:text-fg disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply bg-acc border-acc text-[#06121f] font-semibold px-4
+           hover:bg-acc/90 hover:border-acc;
+  }
+  .btn-ghost {
+    @apply bg-transparent border-ink-600 text-fg-dim px-2 py-0.5 text-2xs
+           hover:border-fg-dim hover:text-fg;
+  }
+
+  /* 表格 */
+  .th { @apply py-2 px-2.5 border-b border-ink-600 text-fg-dim text-xs font-medium text-left whitespace-nowrap; }
+  .td { @apply py-2.5 px-2.5 border-b border-[#202833]; }
+  .th-sort { @apply cursor-pointer select-none; }
+  .th-sort::after {
+    content: ''; @apply inline-block w-3 ml-1 opacity-35 text-[10px];
+  }
+  .th-sort.asc::after  { content: '▲'; @apply opacity-90 text-acc; }
+  .th-sort.desc::after { content: '▼'; @apply opacity-90 text-acc; }
+
+  /* 表单 */
+  .fld { @apply block mb-3 text-xs text-fg-dim; }
+  .fld > span { @apply block mb-1; }
+  .inp {
+    @apply w-full bg-ink-700 border border-ink-600 text-fg px-3 py-1.5 rounded-md
+           text-xs outline-none focus:border-acc;
+  }
+  .inp:disabled { @apply bg-ink-900/60 text-fg-dim2 cursor-not-allowed; }
+
+  /* 待办 */
+  .todo-item {
+    @apply py-2 px-3 border-l-2 border-warn bg-ink-700 rounded-r-md mb-1.5
+           text-[13px] leading-relaxed;
+  }
+
+  /* 凭证查看器 */
+  .vw-thumb {
+    @apply relative border border-ink-600 rounded-md overflow-hidden cursor-pointer
+           bg-[#0b0f14] p-0 w-full transition-colors;
+  }
+  .vw-thumb img { @apply w-full h-[120px] object-cover block opacity-75 transition-opacity; }
+  .vw-thumb b {
+    @apply absolute left-0 right-0 bottom-0 bg-black/70 text-fg text-2xs
+           font-medium px-1.5 py-1 text-left;
+  }
+  .vw-thumb.on { @apply border-acc; }
+  .vw-thumb.on img { @apply opacity-100; }
+
+  /* 拖拽上传 */
+  .dropzone {
+    @apply border border-dashed border-ink-600 rounded-lg p-3.5 text-center
+           text-fg-dim text-xs cursor-pointer transition-colors;
+  }
+  .dropzone:hover, .dropzone.over { @apply border-acc text-fg bg-[#1b222c]; }
+}

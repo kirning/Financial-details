@@ -1,0 +1,33 @@
+# 密钥：绝不入库
+.env
+*.env
+server/.env
+
+# SQLite 运行时文件与备份
+data/*.db-wal
+data/*.db-shm
+data/*.db.bak*
+
+# 依赖与构建产物
+node_modules/
+web/dist/
+server/dist/
+
+# 账本数据与凭证（真实财务 / 隐私，公开仓库绝不上传）
+data/
+凭证/
+收件箱/
+_归档/
+明细分析.md
+
+# 运行时与临时
+*.log
+*.tmp
+*.bak
+
+# pnpm 安装残留 / 临时备份（非源码，曾留下上千个 .bin 文件）
+_old_*
+*_tmp_*
+
+# 配置样例允许入库（不含真实密钥）
+!server/.env.example
