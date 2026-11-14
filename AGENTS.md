@@ -80,6 +80,42 @@
 
 ---
 
+## 🤖 MCP 服务（Streamable HTTP，2026-11-14 起）
+
+与 Web 服务**同进程**（`server/index.ts` 启动时一并拉起），默认 `http://127.0.0.1:7302/mcp`，
+健康检查 `GET /health`。共用同一个 SQLite 连接，所以还原数据库时不会出现多进程指向不同文件的问题。
+
+**工具只覆盖流水明细 CRUD + 整库备份/还原**，不提供统计工具 ——
+web 的收支结构、月度趋势、余额全部由明细实时算出，改明细即反映到统计。
+
+| 工具 | 作用 |
+|---|---|
+| `ledger_list_vouchers` | 条件查询（period / type / acc / from / to / q / tag + limit / offset） |
+| `ledger_get_voucher` | 按凭证号查单笔完整字段 |
+| `ledger_create_voucher` | 新增（凭证号自动分配；凭证图片走现有上传接口） |
+| `ledger_update_voucher` | 局部修改，只传要改的字段 |
+| `ledger_delete_voucher` | 删除（**必须 confirm=true**；仅删 DB 记录，不动凭证图） |
+| `ledger_backup_db` | `VACUUM INTO` 一致快照 → MinIO `backups/` → 回读校验 SHA256 → 写 `.json` 元数据 |
+| `ledger_list_backups` | 列出备份（按文件名倒序） |
+| `ledger_restore_db` | 还原（**必须 confirm=true**）：校验 → 自动预备份 → 本地留底 → 关连接 → 替换 → 重开 |
+
+**还原安全网**：先验 `SQLite format 3` 文件头 + `PRAGMA integrity_check` + `vouchers`/`attachments` 表；
+还原前自动 `backupDb('pre-restore')` 到 MinIO，本地留 `data/ledger.db.before-restore-<ts>`；
+替换失败立即用本地副本回滚，`finally` 里必定 `Q.reopenDatabase()` 恢复连接。
+凭证图片独立存在 MinIO / 本地镜像，**还原 DB 不会影响凭证文件**。
+
+**配置**（`server/.env`，样例见 `.env.example`）：`MCP_PORT` / `MCP_HOST` / `MCP_TOKEN`。
+默认仅监听 `127.0.0.1` 且无鉴权；**远程暴露必须设 MCP_TOKEN**，客户端带
+`Authorization: Bearer <token>`。WorkBuddy 接入可在 `~/.workbuddy/mcp.json` 加：
+```json
+{"mcpServers":{"nanfeng-ledger":{"url":"http://127.0.0.1:7302/mcp"}}}
+```
+
+源码：`server/mcp.ts`（工具与 HTTP 传输）；`db.ts` 为此新增 `closeDatabase()` /
+`reopenDatabase()`，`db` 由 `const` 改成 `let`（ESM live binding）。
+
+---
+
 ## 🗄️ 凭证对象存储：MinIO（2026-11-14 起）
 
 **主存储是 MinIO，本地 `凭证/` 只作镜像 / 灾备**（15 MB，不删，离线也能看账）。

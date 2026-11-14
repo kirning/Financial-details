@@ -42,6 +42,7 @@ import {
   getObject, putObject, ensureBucket, isEnabled, status,
   listObjects, contentTypeOf, objectKey,
 } from './storage.js'
+import { startMcpServer } from './mcp.js'
 
 const PORT = +(process.env.PORT || 7300)
 const app = new Koa()
@@ -329,6 +330,7 @@ app.use(async (ctx: RouterContext) => {
 })
 
 Q.migrateFromCsv()
+startMcpServer()   // MCP 与 Web 同进程，共用同一个 SQLite 连接
 if (isEnabled()) {
   // 启动兜底：任何链路（CLI / 脚本 / 手工）只写了本地的文件，都会在这里补传
   void ensureBucket()

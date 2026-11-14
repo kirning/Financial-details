@@ -29,9 +29,23 @@ const CSV_PATH = join(ROOT, '流水.csv')
 
 mkdirSync(join(ROOT, 'data'), { recursive: true })
 
-export const db = new DatabaseSync(DB_PATH)
+/** 用 let 而非 const：MCP 的「还原数据库」需要换文件后重开连接。
+ *  ESM 导出是 live binding，其他模块通过 Q.db 访问到的始终是当前连接。 */
+export let db = new DatabaseSync(DB_PATH)
 db.exec('PRAGMA journal_mode = WAL')
 db.exec('PRAGMA foreign_keys = ON')
+db.exec('PRAGMA busy_timeout = 5000')
+
+/** 关闭当前连接（还原前调用，确保 WAL 落盘并释放文件句柄） */
+export function closeDatabase(): void { db.close() }
+
+/** 替换 ledger.db 后重新建立连接；表结构与索引已存在于文件中，无需重建 */
+export function reopenDatabase(): void {
+  db = new DatabaseSync(DB_PATH)
+  db.exec('PRAGMA journal_mode = WAL')
+  db.exec('PRAGMA foreign_keys = ON')
+  db.exec('PRAGMA busy_timeout = 5000')
+}
 
 /**
  * node:sqlite 的 all()/get() 返回的是 `Record<string, SQLOutputValue>[]`，

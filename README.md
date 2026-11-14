@@ -164,6 +164,28 @@ node dist/cli.js minio-sync     # 幂等同步 凭证/ 全部文件到 MinIO
 node dist/cli.js minio-verify   # 全量回读远端对象比对 SHA256
 ```
 
+## MCP 服务（Streamable HTTP）
+
+`server/mcp.ts` 提供基于 HTTP 的 MCP 服务，随后端一起启动，默认
+`http://127.0.0.1:7302/mcp`（健康检查 `/health`）。**与 Web 共用同一进程和同一个 SQLite 连接**。
+
+工具只有「流水明细」的增删改查 —— 页面上的统计全部由明细实时计算，无需单独统计工具：
+
+| 工具 | 说明 |
+|---|---|
+| `ledger_list_vouchers` / `ledger_get_voucher` | 条件查询 / 单笔查询 |
+| `ledger_create_voucher` / `ledger_update_voucher` | 新增 / 局部修改 |
+| `ledger_delete_voucher` | 删除（需 `confirm: true`） |
+| `ledger_backup_db` / `ledger_list_backups` | 备份 SQLite 到 MinIO `backups/`（VACUUM INTO + SHA256 回读校验）/ 列出备份 |
+| `ledger_restore_db` | 从备份还原（需 `confirm: true`；自动预备份 + 本地留底 + 完整性校验） |
+
+配置见 `server/.env.example`：`MCP_PORT` / `MCP_HOST` / `MCP_TOKEN`。
+默认只监听本机、不鉴权；远程暴露**必须**设置 `MCP_TOKEN`。
+WorkBuddy 客户端配置示例：
+```json
+{"mcpServers":{"nanfeng-ledger":{"url":"http://127.0.0.1:7302/mcp"}}}
+```
+
 ## API
 
 | 方法 | 路径 | 说明 |
